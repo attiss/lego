@@ -106,6 +106,11 @@ func lookupNameservers(fqdn string) ([]string, error) {
 
 	for _, rr := range r.Answer {
 		if ns, ok := rr.(*dns.NS); ok {
+			// exclude "a14-66.akam.net" from NS list
+			if strings.Contains(ns.Ns, "a14-66.akam.net") {
+				continue
+			}
+
 			authoritativeNss = append(authoritativeNss, strings.ToLower(ns.Ns))
 		}
 	}
