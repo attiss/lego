@@ -39,7 +39,7 @@ func newSoaCacheEntry(soa *dns.SOA) *soaCacheEntry {
 	return &soaCacheEntry{
 		zone:      soa.Hdr.Name,
 		primaryNs: soa.Ns,
-		expires:   time.Now().Add(time.Duration(soa.Refresh) * time.Second),
+		expires:   time.Now().Add(time.Duration(15 * time.Minute)), // force SOA record lookups every 15 minutes
 	}
 }
 
@@ -108,6 +108,12 @@ func lookupNameservers(fqdn string) ([]string, error) {
 
 	for _, rr := range r.Answer {
 		if ns, ok := rr.(*dns.NS); ok {
+			// excluding failing nameservers a1-207.akam.net. (193.108.91.207), a7-67.akam.net. (23.61.199.67), a1-180.akam.net. (193.108.91.180)
+			switch ns.Ns {
+			case "a1-207.akam.net.", "a7-67.akam.net.", "a1-180.akam.net.":
+				continue
+			}
+
 			authoritativeNss = append(authoritativeNss, strings.ToLower(ns.Ns))
 		}
 	}
@@ -200,6 +206,16 @@ func fetchSoaByFqdn(fqdn string, nameservers []string) (*soaCacheEntry, error) {
 
 			for _, ans := range in.Answer {
 				if soa, ok := ans.(*dns.SOA); ok {
+					// overriding primary nameserver to avoid flaky servers
+					switch soa.Ns {
+					case "a1-207.akam.net.":
+						soa.Ns = "a6-64.akam.net."
+					case "a7-67.akam.net.":
+						soa.Ns = "a14-66.akam.net."
+					case "a1-180.akam.net.":
+						soa.Ns = "a22-66.akam.net."
+					}
+
 					return newSoaCacheEntry(soa), nil
 				}
 			}
